@@ -25,58 +25,57 @@
         button:disabled {
             background-color: #ccc;
         }
-        #download-btn {
+        a {
             display: none;
+            text-decoration: none;
+            padding: 15px 30px;
+            background-color: #008CBA;
+            color: white;
+            border-radius: 5px;
+            font-size: 18px;
+            margin-top: 10px;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
+    <h1>Record Your Dream</h1>
+    <p>Use the button below to start recording your dream. Once finished, click "Stop Recording".</p>
+    <button id="start-btn">Start Recording</button>
+    <button id="stop-btn" disabled>Stop Recording</button>
+    <a id="download-btn" href="#" download="dream_recording.wav">Download Recording</a>
 
-<h1>Record Your Dream</h1>
-<p>Use the button below to start recording your dream. Once finished, click "Stop Recording".</p>
+    <script>
+        var recorder;
+        var audioBlob;
+        
+        document.getElementById('start-btn').onclick = function() {
+            this.disabled = true;
+            document.getElementById('stop-btn').disabled = false;
 
-<button id="start-btn">Start Recording</button>
-<button id="stop-btn" disabled>Stop Recording</button>
-<button id="download-btn" disabled>Download Recording</button>
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    recorder = RecordRTC(stream, { type: 'audio' });
+                    recorder.startRecording();
+                })
+                .catch(function(error) {
+                    alert('Failed to access your microphone. Please allow microphone access.');
+                });
+        };
 
-<script>
-    var recorder;
-    var audioBlob;
-    
-    // When the user clicks the "Start Recording" button
-    document.getElementById('start-btn').onclick = function() {
-        this.disabled = true;
-        document.getElementById('stop-btn').disabled = false;
+        document.getElementById('stop-btn').onclick = function() {
+            this.disabled = true;
+            document.getElementById('start-btn').disabled = false;
 
-        // Request access to the user's microphone
-        navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(function(stream) {
-                recorder = RecordRTC(stream, { type: 'audio' });
-                recorder.startRecording();
-            })
-            .catch(function(error) {
-                alert('Failed to access your microphone. Please allow microphone access.');
+            recorder.stopRecording(function() {
+                audioBlob = recorder.getBlob();
+                var audioUrl = URL.createObjectURL(audioBlob);
+
+                var downloadBtn = document.getElementById('download-btn');
+                downloadBtn.href = audioUrl;
+                downloadBtn.style.display = 'inline-block'; // Show the button
             });
-    };
-
-    // When the user clicks the "Stop Recording" button
-    document.getElementById('stop-btn').onclick = function() {
-        this.disabled = true;
-        document.getElementById('start-btn').disabled = false;
-
-        recorder.stopRecording(function() {
-            audioBlob = recorder.getBlob();
-            var audioUrl = URL.createObjectURL(audioBlob);
-
-            // Enable the download button and set the download link
-            var downloadBtn = document.getElementById('download-btn');
-            downloadBtn.disabled = false;
-            downloadBtn.href = audioUrl;
-            downloadBtn.download = 'dream_recording.wav';
-            downloadBtn.textContent = 'Download Recording';
-        });
-    };
-</script>
-
+        };
+    </script>
 </body>
 </html>
