@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Recorder</title>
     <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-storage.js"></script>
-    
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -50,22 +48,24 @@
     <a id="download-btn" href="#" download="dream_recording.wav">Download Recording</a>
 
     <script>
-        // Initialize Firebase
+        // Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyCnPIDaQ9mTKW-EftSm4FnAEOOzVYzExik",
-            authDomain: "dream-recorder-bde6b.firebaseapp.com",
-            projectId: "dream-recorder-bde6b",
-            storageBucket: "dream-recorder-bde6b.appspot.com",
-            messagingSenderId: "657242797737",
-            appId: "1:657242797737:web:e34eef1594204ae7105bb8",
-            measurementId: "G-1P1BC05DWV"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+            appId: "YOUR_APP_ID",
+            measurementId: "YOUR_MEASUREMENT_ID"
         };
+
+        // Initialize Firebase
         const app = firebase.initializeApp(firebaseConfig);
         const storage = firebase.storage();
 
         var recorder;
         var audioBlob;
-        
+
         document.getElementById('start-btn').onclick = function() {
             this.disabled = true;
             document.getElementById('stop-btn').disabled = false;
@@ -88,23 +88,31 @@
                 audioBlob = recorder.getBlob();
                 var audioUrl = URL.createObjectURL(audioBlob);
 
-                var downloadBtn = document.getElementById('download-btn');
-                downloadBtn.href = audioUrl;
-                downloadBtn.style.display = 'inline-block'; // Show the button
+                // Create a storage reference and upload the file to Firebase Storage
+                const storageRef = storage.ref('audio/' + new Date().toISOString() + '.wav');
+                const uploadTask = storageRef.put(audioBlob);
 
-                // Now upload the file to Firebase Storage
-                const storageRef = storage.ref();
-                const audioRef = storageRef.child('audio/dream_recording.wav');
-                const uploadTask = audioRef.put(audioBlob);
-
-                uploadTask.on('state_changed', function(snapshot) {
-                    // Monitor progress here if needed
-                }, function(error) {
-                    alert('Upload failed: ' + error.message);
-                }, function() {
-                    // On successful upload
-                    alert('Upload successful!');
-                });
+                uploadTask.on('state_changed', 
+                    function(snapshot) {
+                        // Optionally track upload progress here
+                        var progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        console.log('Upload is ' + progress + '% done');
+                    }, 
+                    function(error) {
+                        // Handle unsuccessful uploads
+                        console.error('Upload failed:', error);
+                    }, 
+                    function() {
+                        // Handle successful uploads
+                        console.log('Upload successful');
+                        storageRef.getDownloadURL().then(function(url) {
+                            // Enable the download button and set the download link
+                            var downloadBtn = document.getElementById('download-btn');
+                            downloadBtn.href = url;
+                            downloadBtn.style.display = 'inline-block'; // Show the button
+                        });
+                    }
+                );
             });
         };
     </script>
