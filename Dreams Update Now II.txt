@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dream Recorder App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/webspeechapi/0.1.0/webspeechapi.min.js"></script>
+    <style>
+        /* Basic styling for the app */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f3f3f3;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h1, h2 {
+            color: #007BFF;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+        }
+        button:disabled {
+            background-color: #d3d3d3;
+        }
+        #dream-transcript, #dream-interpretation {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border: 1px solid #ddd;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Record Your Dream</h1>
+
+        <!-- Start Recording Button -->
+        <button id="start-recording">Start Recording</button>
+
+        <!-- Stop Recording Button -->
+        <button id="stop-recording" disabled>Stop Recording</button>
+
+        <!-- Download Recording Button -->
+        <button id="download-recording" disabled>Download Recording</button>
+
+        <!-- Transcribe to Text Button -->
+        <button id="transcribe" disabled>Transcribe to Text</button>
+
+        <!-- Interpret Dream Button -->
+        <button id="interpret-dream" disabled>Interpret Dream</button>
+
+        <h2>Your Dream Transcript:</h2>
+        <div id="dream-transcript">
+            <p>No transcription yet.</p>
+        </div>
+
+        <h2>Interpretation:</h2>
+        <div id="dream-interpretation">
+            <p>No interpretation yet.</p>
+        </div>
+    </div>
+
+    <script>
+        // Select the buttons
+        const startRecordingBtn = document.getElementById('start-recording');
+        const stopRecordingBtn = document.getElementById('stop-recording');
+        const downloadRecordingBtn = document.getElementById('download-recording');
+        const transcribeBtn = document.getElementById('transcribe');
+        const interpretBtn = document.getElementById('interpret-dream');
+
+        // Select the areas for transcript and interpretation
+        const transcriptDiv = document.getElementById('dream-transcript');
+        const interpretationDiv = document.getElementById('dream-interpretation');
+
+        // Variables for the SpeechRecognition API
+        let recognition;
+        let isRecording = false;
+        let audioBlob;
+        let audioURL;
+        let recorder;
+
+        // Initialize the SpeechRecognition API
+        if ('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = () => {
+                isRecording = true;
+                startRecordingBtn.disabled = true;
+                stopRecordingBtn.disabled = false;
+                transcribeBtn.disabled = false;
+                interpretBtn.disabled = false;
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                startRecordingBtn.disabled = false;
+                stopRecordingBtn.disabled = true;
+            };
+
+            recognition.onresult = (event) => {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+                transcriptDiv.innerHTML = `<p>${transcript}</p>`;
+            };
+        }
+
+        // Start Recording
+        startRecordingBtn.addEventListener('click', () => {
+            recognition.start();
+        });
+
+        // Stop Recording
+        stopRecordingBtn.addEventListener('click', () => {
+            recognition.stop();
+        });
+
+        // Transcribe the Recorded Audio to Text (already happens during recording)
+        transcribeBtn.addEventListener('click', () => {
+            if (isRecording) {
+                recognition.stop();  // Stops recording to allow transcription
+            }
+        });
+
+        // Handle AI interpretation (replace the endpoint with your actual interpretation API)
+        interpretBtn.addEventListener('click', async () => {
+            const dreamText = transcriptDiv.innerText.trim();
+
+            if (dreamText === "" || dreamText === "No transcription yet.") {
+                alert("Please record and transcribe your dream first.");
+                return;
+            }
+
+            try {
+                // Replace with the actual AI endpoint for dream interpretation
+                const response = await fetch('https://your-api-endpoint.com/interpreter', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ dream_text: dreamText }),
+                });
+
+                const data = await response.json();
+
+                // Display the interpretation from AI
+                interpretationDiv.innerHTML = `<p>${data.interpretation}</p>`;
+            } catch (error) {
+                console.error("Error interpreting the dream:", error);
+                interpretationDiv.innerHTML = `<p>Sorry, there was an error interpreting your dream.</p>`;
+            }
+        });
+
+        // Enable download of the recorded audio
+        downloadRecordingBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.href = audioURL;
+            link.download = 'recorded_dream.wav';
+            link.click();
+        });
+    </script>
+</body>
+</html>
