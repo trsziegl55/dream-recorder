@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dream Recorder</title>
+    
+    <!-- Firebase SDKs -->
+    <script type="module" src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
+    <script type="module" src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f0f8ff;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+        a {
+            display: none;
+            text-decoration: none;
+            padding: 15px 30px;
+            background-color: #008CBA;
+            color: white;
+            border-radius: 5px;
+            font-size: 18px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Record Your Dream</h1>
+    <p>Use the button below to start recording your dream. Once finished, click "Stop Recording".</p>
+    <button id="start-btn">Start Recording</button>
+    <button id="stop-btn" disabled>Stop Recording</button>
+    <a id="download-btn" href="#" download="dream_recording.wav">Download Recording</a>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
+        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
+        // Your Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnPIDaQ9mTKW-EftSm4FnAEOOzVYzExik",
+            authDomain: "dream-recorder-bde6b.firebaseapp.com",
+            projectId: "dream-recorder-bde6b",
+            storageBucket: "dream-recorder-bde6b.firebasestorage.app",
+            messagingSenderId: "657242797737",
+            appId: "1:657242797737:web:e34eef1594204ae7105bb8",
+            measurementId: "G-1P1BC05DWV"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const storage = getStorage(app);
+
+        var recorder;
+        var audioBlob;
+        
+        document.getElementById('start-btn').onclick = function() {
+            this.disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    recorder = RecordRTC(stream, { type: 'audio' });
+                    recorder.startRecording();
+                })
+                .catch(function(error) {
+                    alert('Failed to access your microphone. Please allow microphone access.');
+                });
+        };
+
+        document.getElementById('stop-btn').onclick = function() {
+            this.disabled = true;
+            document.getElementById('start-btn').disabled = false;
+
+            recorder.stopRecording(function() {
+                audioBlob = recorder.getBlob();
+                var audioUrl = URL.createObjectURL(audioBlob);
+
+                // Prepare file for Firebase Storage
+                const storageRef = ref(storage, 'audio/dream-recording.wav');
+                const uploadTask = uploadBytesResumable(storageRef, audioBlob);
+
+                uploadTask.on('state_changed', 
+                    function(snapshot) {
+                        // Monitor progress (optional)
+                    }, 
+                    function(error) {
+                        alert("Upload failed! Please try again.");
+                    }, 
+                    function() {
+                        getDownloadURL(uploadTask.snapshot.ref).then(function(downloadURL) {
+                            var downloadBtn = document.getElementById('download-btn');
+                            downloadBtn.href = downloadURL;
+                            downloadBtn.style.display = 'inline-block'; // Show the button
+                        });
+                    }
+                );
+            });
+        };
+    </script>
+</body>
+</html>
