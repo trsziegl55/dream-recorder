@@ -19,6 +19,7 @@
     <button id="startRecording">Start Recording</button>
     <button id="stopRecording" disabled>Stop Recording</button>
     <audio id="audioPlayback" controls></audio>
+    <a id="downloadLink" style="display:none" download="dream.wav">Download Recording</a>
 
     <!-- Transcription Button -->
     <button id="transcribeButton">Transcribe Recording</button>
@@ -36,14 +37,14 @@
         let mediaRecorder;
         let audioChunks = [];
 
-        // Check if SpeechRecognition is supported
+        // Speech Recognition API
         window.SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const recognition = new SpeechRecognition();
         recognition.lang = 'en-US';
         recognition.continuous = false;
         recognition.interimResults = false;
 
-        // Audio Recording Setup
+        // Start Recording
         document.getElementById("startRecording").addEventListener("click", async function() {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -54,6 +55,8 @@
                 const audioBlob = new Blob(audioChunks, { type: "audio/wav" });
                 const audioUrl = URL.createObjectURL(audioBlob);
                 document.getElementById("audioPlayback").src = audioUrl;
+                document.getElementById("downloadLink").href = audioUrl;
+                document.getElementById("downloadLink").style.display = "block";
             };
 
             mediaRecorder.start();
@@ -61,13 +64,14 @@
             document.getElementById("stopRecording").disabled = false;
         });
 
+        // Stop Recording
         document.getElementById("stopRecording").addEventListener("click", function() {
             mediaRecorder.stop();
             document.getElementById("startRecording").disabled = false;
             document.getElementById("stopRecording").disabled = true;
         });
 
-        // Transcription
+        // Transcription (Speech-to-Text)
         document.getElementById("transcribeButton").addEventListener("click", function() {
             recognition.start();
         });
