@@ -109,7 +109,7 @@
 
         // Function to send the transcribed dream text to OpenAI for interpretation
         function getDreamInterpretation(transcribedText) {
-            const apiKey = "YOUR_OPENAI_API_KEY";  // Replace with your OpenAI API key
+            const apiKey = "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";  // Replace with your OpenAI API key
             
             fetch("https://api.openai.com/v1/completions", {
                 method: "POST",
