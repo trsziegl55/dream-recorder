@@ -4,55 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Recorder</title>
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js"></script>
-
-    <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
-
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-            background-color: #f0f8ff;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 18px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px;
-        }
-        button:disabled {
-            background-color: #ccc;
-        }
-        a {
-            display: none;
-            text-decoration: none;
-            padding: 15px 30px;
-            background-color: #008CBA;
-            color: white;
-            border-radius: 5px;
-            font-size: 18px;
-            margin-top: 10px;
-            cursor: pointer;
-        }
-    </style>
+    <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-storage.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.2/firebase-firestore.js"></script>
 </head>
 <body>
     <h1>Record Your Dream</h1>
-    <p>Use the button below to start recording your dream. Once finished, click "Stop Recording".</p>
-    <button id="start-btn">Start Recording</button>
-    <button id="stop-btn" disabled>Stop Recording</button>
-    <a id="download-btn" href="#" download="dream_recording.wav">Download Recording</a>
-    <input type="file" id="upload-button" />
-    <button id="upload-btn" disabled>Upload to Firebase</button>
-
+    <button id="start-recording">Start Recording</button>
+    <button id="stop-recording" disabled>Stop Recording</button>
+    <div id="transcription">Your transcription will appear here...</div>
+    <div id="interpretation">Your dream interpretation will appear here...</div>
+    
     <script>
         // Firebase configuration
         const firebaseConfig = {
@@ -62,66 +24,94 @@
             storageBucket: "YOUR_PROJECT_ID.appspot.com",
             messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
             appId: "YOUR_APP_ID",
+            measurementId: "YOUR_MEASUREMENT_ID"
         };
-
-        // Initialize Firebase
+        
         const app = firebase.initializeApp(firebaseConfig);
         const storage = firebase.storage();
+        
+        // Set up Speech Recognition
+        const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+        recognition.lang = 'en-US';
+        recognition.continuous = true;
+        recognition.interimResults = true;
 
-        var recorder;
-        var audioBlob;
+        // Elements
+        const startBtn = document.getElementById("start-recording");
+        const stopBtn = document.getElementById("stop-recording");
+        const transcriptionDiv = document.getElementById("transcription");
 
-        document.getElementById('start-btn').onclick = function() {
-            this.disabled = true;
-            document.getElementById('stop-btn').disabled = false;
+        let audioChunks = [];
 
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(function(stream) {
-                    recorder = RecordRTC(stream, { type: 'audio' });
-                    recorder.startRecording();
-                })
-                .catch(function(error) {
-                    alert('Failed to access your microphone. Please allow microphone access.');
-                });
+        // Start Recording
+        startBtn.onclick = function() {
+            recognition.start();
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
         };
 
-        document.getElementById('stop-btn').onclick = function() {
-            this.disabled = true;
-            document.getElementById('start-btn').disabled = false;
+        // Stop Recording
+        stopBtn.onclick = function() {
+            recognition.stop();
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+        };
 
-            recorder.stopRecording(function() {
-                audioBlob = recorder.getBlob();
-                var audioUrl = URL.createObjectURL(audioBlob);
+        // Handle Speech Recognition Result
+        recognition.onresult = function(event) {
+            const transcript = event.results[event.results.length - 1][0].transcript;
+            transcriptionDiv.innerText = transcript;
+        };
 
-                var downloadBtn = document.getElementById('download-btn');
-                downloadBtn.href = audioUrl;
-                downloadBtn.style.display = 'inline-block'; // Show the button
+        // Handle Error
+        recognition.onerror = function(event) {
+            transcriptionDiv.innerText = "Error: " + event.error;
+        };
 
-                // Enable the upload button after recording is done
-                document.getElementById('upload-btn').disabled = false;
+        // Example: Upload Transcription to Firebase Storage (optional)
+        function uploadTranscription(text) {
+            const storageRef = storage.ref().child('dream_transcriptions/' + Date.now() + '.txt');
+            storageRef.putString(text).then(function(snapshot) {
+                console.log("Transcription uploaded successfully!");
             });
+        }
+
+        // Optionally, upload transcription to Firebase Firestore for storage
+        recognition.onend = function() {
+            const transcriptionText = transcriptionDiv.innerText;
+            if (transcriptionText) {
+                uploadTranscription(transcriptionText);
+            }
         };
 
-        // Upload audio to Firebase Storage
-        document.getElementById('upload-btn').onclick = function() {
-            const file = audioBlob;
-            const storageRef = storage.ref('audio/' + file.name);
-            const uploadTask = storageRef.put(file);
+        // AI Integration (Optional, e.g., OpenAI)
+        async function getAIInterpretation(dreamText) {
+            const apiKey = "YOUR_OPENAI_API_KEY";
+            const response = await fetch('https://api.openai.com/v1/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'text-davinci-003',
+                    prompt: `Interpret the following dream: ${dreamText}`,
+                    max_tokens: 100
+                })
+            });
 
-            uploadTask.on(
-                'state_changed',
-                (snapshot) => {
-                    // Optional: You can handle progress here
-                    console.log('Upload in progress...');
-                },
-                (error) => {
-                    console.error('Upload failed:', error);
-                },
-                () => {
-                    console.log('Upload successful!');
-                    alert('File uploaded successfully!');
-                }
-            );
+            const data = await response.json();
+            const interpretation = data.choices[0].text.trim();
+            document.getElementById('interpretation').innerText = interpretation;
+        }
+
+        // Example Usage: Call AI after transcription is complete
+        recognition.onend = function() {
+            const transcriptionText = transcriptionDiv.innerText;
+            if (transcriptionText) {
+                uploadTranscription(transcriptionText);
+                getAIInterpretation(transcriptionText);  // Get the AI Interpretation
+            }
         };
     </script>
 </body>
