@@ -3,12 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dream Recorder</title>
-    
-    <!-- Firebase SDKs -->
-    <script type="module" src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js"></script>
-    <script type="module" src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js"></script>
-    
+    <title>Dream Recorder with AI Interpretation</title>
+    <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -40,36 +36,36 @@
             margin-top: 10px;
             cursor: pointer;
         }
+        #interpretation-output {
+            margin-top: 20px;
+            font-size: 18px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
     <h1>Record Your Dream</h1>
     <p>Use the button below to start recording your dream. Once finished, click "Stop Recording".</p>
+    
+    <!-- Start/Stop buttons for recording -->
     <button id="start-btn">Start Recording</button>
     <button id="stop-btn" disabled>Stop Recording</button>
+    
+    <!-- Link to download the audio -->
     <a id="download-btn" href="#" download="dream_recording.wav">Download Recording</a>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-app.js";
-        import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/9.6.1/firebase-storage.js";
-        // Your Firebase config
-        const firebaseConfig = {
-            apiKey: "AIzaSyCnPIDaQ9mTKW-EftSm4FnAEOOzVYzExik",
-            authDomain: "dream-recorder-bde6b.firebaseapp.com",
-            projectId: "dream-recorder-bde6b",
-            storageBucket: "dream-recorder-bde6b.firebasestorage.app",
-            messagingSenderId: "657242797737",
-            appId: "1:657242797737:web:e34eef1594204ae7105bb8",
-            measurementId: "G-1P1BC05DWV"
-        };
+    <!-- Display interpretation -->
+    <div id="interpretation-output">
+        <!-- Dream interpretation will appear here -->
+    </div>
 
-        // Initialize Firebase
-        const app = initializeApp(firebaseConfig);
-        const storage = getStorage(app);
-
+    <script>
         var recorder;
         var audioBlob;
-        
+
+        // Function to start recording audio
         document.getElementById('start-btn').onclick = function() {
             this.disabled = true;
             document.getElementById('stop-btn').disabled = false;
@@ -84,6 +80,7 @@
                 });
         };
 
+        // Function to stop recording and display the download link
         document.getElementById('stop-btn').onclick = function() {
             this.disabled = true;
             document.getElementById('start-btn').disabled = false;
@@ -92,27 +89,56 @@
                 audioBlob = recorder.getBlob();
                 var audioUrl = URL.createObjectURL(audioBlob);
 
-                // Prepare file for Firebase Storage
-                const storageRef = ref(storage, 'audio/dream-recording.wav');
-                const uploadTask = uploadBytesResumable(storageRef, audioBlob);
-
-                uploadTask.on('state_changed', 
-                    function(snapshot) {
-                        // Monitor progress (optional)
-                    }, 
-                    function(error) {
-                        alert("Upload failed! Please try again.");
-                    }, 
-                    function() {
-                        getDownloadURL(uploadTask.snapshot.ref).then(function(downloadURL) {
-                            var downloadBtn = document.getElementById('download-btn');
-                            downloadBtn.href = downloadURL;
-                            downloadBtn.style.display = 'inline-block'; // Show the button
-                        });
-                    }
-                );
+                var downloadBtn = document.getElementById('download-btn');
+                downloadBtn.href = audioUrl;
+                downloadBtn.style.display = 'inline-block'; // Show the button
+                
+                // Transcribe the audio and send it to OpenAI for interpretation
+                transcribeAudio(audioBlob);
             });
         };
+
+        // Function to transcribe the audio using Speech-to-Text API (you'll need to integrate a service for transcription)
+        function transcribeAudio(audioBlob) {
+            // Simulate transcription for now (replace with actual transcription service)
+            var transcribedText = "This is a test dream transcription.";
+
+            // Once the text is transcribed, send it to OpenAI for interpretation
+            getDreamInterpretation(transcribedText);
+        }
+
+        // Function to send the transcribed dream text to OpenAI for interpretation
+        function getDreamInterpretation(transcribedText) {
+            const apiKey = "YOUR_OPENAI_API_KEY";  // Replace with your OpenAI API key
+            
+            fetch("https://api.openai.com/v1/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${apiKey}`,
+                },
+                body: JSON.stringify({
+                    model: "text-davinci-003",  // Use the OpenAI GPT model
+                    prompt: `Interpret this dream spiritually: "${transcribedText}"`,  // The transcribed text
+                    max_tokens: 200,  // Adjust based on response length
+                    temperature: 0.7,  // Controls the creativity of the response
+                }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Display the interpretation
+                displayInterpretation(data.choices[0].text);
+            })
+            .catch(error => {
+                console.error("Error interpreting the dream:", error);
+            });
+        }
+
+        // Function to display the interpretation result on the page
+        function displayInterpretation(interpretationText) {
+            const outputElement = document.getElementById("interpretation-output");
+            outputElement.innerHTML = `<strong>Dream Interpretation:</strong><br>${interpretationText}`;
+        }
     </script>
 </body>
 </html>
