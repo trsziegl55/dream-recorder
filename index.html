@@ -5,6 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dream Recorder</title>
     <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
+
+    <!-- Firebase Configuration -->
+    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-firestore.js"></script>
+    <script>
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",  // Replace with your Firebase API Key
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",  // Replace with your Firebase Project ID
+            projectId: "YOUR_PROJECT_ID",  // Replace with your Firebase Project ID
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",  // Replace with your Firebase Project ID
+            messagingSenderId: "YOUR_MESSAGING_SENDER_ID",  // Replace with your Firebase Sender ID
+            appId: "YOUR_APP_ID"  // Replace with your Firebase App ID
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        const storage = firebase.storage();
+    </script>
+
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -25,16 +45,8 @@
         button:disabled {
             background-color: #ccc;
         }
-        a {
+        #download-btn {
             display: none;
-            text-decoration: none;
-            padding: 15px 30px;
-            background-color: #008CBA;
-            color: white;
-            border-radius: 5px;
-            font-size: 18px;
-            margin-top: 10px;
-            cursor: pointer;
         }
     </style>
 </head>
@@ -49,6 +61,7 @@
         var recorder;
         var audioBlob;
         
+        // When the user clicks the "Start Recording" button
         document.getElementById('start-btn').onclick = function() {
             this.disabled = true;
             document.getElementById('stop-btn').disabled = false;
@@ -63,6 +76,7 @@
                 });
         };
 
+        // When the user clicks the "Stop Recording" button
         document.getElementById('stop-btn').onclick = function() {
             this.disabled = true;
             document.getElementById('start-btn').disabled = false;
@@ -74,8 +88,25 @@
                 var downloadBtn = document.getElementById('download-btn');
                 downloadBtn.href = audioUrl;
                 downloadBtn.style.display = 'inline-block'; // Show the button
+
+                // Save to Firebase Storage
+                saveRecording(audioBlob);
             });
         };
+
+        // Save the recording to Firebase
+        function saveRecording(audioBlob) {
+            const storageRef = firebase.storage().ref();
+            const uploadTask = storageRef.child('dream_recordings/' + new Date().toISOString() + '.wav').put(audioBlob);
+
+            uploadTask.on('state_changed', function(snapshot) {
+                // Track upload progress
+            }, function(error) {
+                console.error("Error uploading the recording:", error);
+            }, function() {
+                console.log("Recording uploaded successfully.");
+            });
+        }
     </script>
 </body>
 </html>
