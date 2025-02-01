@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dream Recorder</title>
+    <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.2/firebase-storage.js"></script>
+    
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+            background-color: #f0f8ff;
+        }
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:disabled {
+            background-color: #ccc;
+        }
+        a {
+            display: none;
+            text-decoration: none;
+            padding: 15px 30px;
+            background-color: #008CBA;
+            color: white;
+            border-radius: 5px;
+            font-size: 18px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Record Your Dream</h1>
+    <p>Use the button below to start recording your dream. Once finished, click "Stop Recording".</p>
+    <button id="start-btn">Start Recording</button>
+    <button id="stop-btn" disabled>Stop Recording</button>
+    <a id="download-btn" href="#" download="dream_recording.wav">Download Recording</a>
+
+    <script>
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyCnPIDaQ9mTKW-EftSm4FnAEOOzVYzExik",
+            authDomain: "dream-recorder-bde6b.firebaseapp.com",
+            projectId: "dream-recorder-bde6b",
+            storageBucket: "dream-recorder-bde6b.appspot.com",
+            messagingSenderId: "657242797737",
+            appId: "1:657242797737:web:e34eef1594204ae7105bb8",
+            measurementId: "G-1P1BC05DWV"
+        };
+        const app = firebase.initializeApp(firebaseConfig);
+        const storage = firebase.storage();
+
+        var recorder;
+        var audioBlob;
+        
+        document.getElementById('start-btn').onclick = function() {
+            this.disabled = true;
+            document.getElementById('stop-btn').disabled = false;
+
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(function(stream) {
+                    recorder = RecordRTC(stream, { type: 'audio' });
+                    recorder.startRecording();
+                })
+                .catch(function(error) {
+                    alert('Failed to access your microphone. Please allow microphone access.');
+                });
+        };
+
+        document.getElementById('stop-btn').onclick = function() {
+            this.disabled = true;
+            document.getElementById('start-btn').disabled = false;
+
+            recorder.stopRecording(function() {
+                audioBlob = recorder.getBlob();
+                var audioUrl = URL.createObjectURL(audioBlob);
+
+                var downloadBtn = document.getElementById('download-btn');
+                downloadBtn.href = audioUrl;
+                downloadBtn.style.display = 'inline-block'; // Show the button
+
+                // Now upload the file to Firebase Storage
+                const storageRef = storage.ref();
+                const audioRef = storageRef.child('audio/dream_recording.wav');
+                const uploadTask = audioRef.put(audioBlob);
+
+                uploadTask.on('state_changed', function(snapshot) {
+                    // Monitor progress here if needed
+                }, function(error) {
+                    alert('Upload failed: ' + error.message);
+                }, function() {
+                    // On successful upload
+                    alert('Upload successful!');
+                });
+            });
+        };
+    </script>
+</body>
+</html>
