@@ -3,141 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dream Recorder with AI Interpretation</title>
-    <script src="https://cdn.webrtc-experiment.com/RecordRTC.js"></script>
+    <title>Dream Recorder</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            text-align: center;
-            padding: 50px;
-            background-color: #f0f8ff;
-        }
-        button {
-            padding: 15px 30px;
-            font-size: 18px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            margin: 10px;
-        }
-        button:disabled {
-            background-color: #ccc;
-        }
-        a {
-            display: none;
-            text-decoration: none;
-            padding: 15px 30px;
-            background-color: #008CBA;
-            color: white;
-            border-radius: 5px;
-            font-size: 18px;
-            margin-top: 10px;
-            cursor: pointer;
-        }
-        #interpretation-output {
-            margin-top: 20px;
-            font-size: 18px;
             padding: 20px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
+            text-align: center;
+        }
+        #recordingSection {
+            margin-top: 20px;
+        }
+        #interpretation {
+            margin-top: 20px;
+            font-weight: bold;
+            display: none;
         }
     </style>
 </head>
 <body>
+
     <h1>Record Your Dream</h1>
     <p>Use the button below to start recording your dream. Once finished, click "Stop Recording".</p>
-    
-    <!-- Start/Stop buttons for recording -->
-    <button id="start-btn">Start Recording</button>
-    <button id="stop-btn" disabled>Stop Recording</button>
-    
-    <!-- Link to download the audio -->
-    <a id="download-btn" href="#" download="dream_recording.wav">Download Recording</a>
 
-    <!-- Display interpretation -->
-    <div id="interpretation-output">
-        <!-- Dream interpretation will appear here -->
+    <div id="recordingSection">
+        <button id="startRecording" onclick="startRecording()">Start Recording</button>
+        <button id="stopRecording" onclick="stopRecording()" disabled>Stop Recording</button>
     </div>
 
+    <div id="transcriptionSection" style="display: none;">
+        <h2>Your Transcription:</h2>
+        <p id="transcription"></p>
+    </div>
+
+    <div id="interpretation">
+        <h2>Dream Interpretation:</h2>
+        <p id="interpretationText"></p>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@firebase/app@9.6.1/dist/firebase-app.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@firebase/storage@9.6.1/dist/firebase-storage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@firebase/auth@9.6.1/dist/firebase-auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/firebase-functions@3.0.0/dist/index.js"></script>
+
     <script>
-        var recorder;
-        var audioBlob;
-
-        // Function to start recording audio
-        document.getElementById('start-btn').onclick = function() {
-            this.disabled = true;
-            document.getElementById('stop-btn').disabled = false;
-
-            navigator.mediaDevices.getUserMedia({ audio: true })
-                .then(function(stream) {
-                    recorder = RecordRTC(stream, { type: 'audio' });
-                    recorder.startRecording();
-                })
-                .catch(function(error) {
-                    alert('Failed to access your microphone. Please allow microphone access.');
-                });
+        // Initialize Firebase
+        const firebaseConfig = {
+            apiKey: 'YOUR_FIREBASE_API_KEY',  // Add your Firebase API Key here
+            authDomain: 'YOUR_PROJECT_ID.firebaseapp.com',  // Your Firebase project ID
+            projectId: 'YOUR_PROJECT_ID',  // Your Firebase project ID
+            storageBucket: 'YOUR_PROJECT_ID.appspot.com',  // Your Firebase storage bucket
+            messagingSenderId: 'YOUR_SENDER_ID',
+            appId: 'YOUR_APP_ID',
+            measurementId: 'YOUR_MEASUREMENT_ID'
         };
+        const app = firebase.initializeApp(firebaseConfig);
+        const storage = firebase.storage();
 
-        // Function to stop recording and display the download link
-        document.getElementById('stop-btn').onclick = function() {
-            this.disabled = true;
-            document.getElementById('start-btn').disabled = false;
+        // Setup for Speech Recognition (for transcribing audio)
+        let recorder;
+        let audioBlob;
+        let audioUrl;
 
-            recorder.stopRecording(function() {
-                audioBlob = recorder.getBlob();
-                var audioUrl = URL.createObjectURL(audioBlob);
-
-                var downloadBtn = document.getElementById('download-btn');
-                downloadBtn.href = audioUrl;
-                downloadBtn.style.display = 'inline-block'; // Show the button
-                
-                // Transcribe the audio and send it to OpenAI for interpretation
-                transcribeAudio(audioBlob);
-            });
-        };
-
-        // Function to transcribe the audio using Speech-to-Text API (you'll need to integrate a service for transcription)
-        function transcribeAudio(audioBlob) {
-            // Simulate transcription for now (replace with actual transcription service)
-            var transcribedText = "This is a test dream transcription.";
-
-            // Once the text is transcribed, send it to OpenAI for interpretation
-            getDreamInterpretation(transcribedText);
+        // Initialize Speech Recognition
+        function startRecording() {
+            // Start recording audio
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then(function (stream) {
+                        recorder = new MediaRecorder(stream);
+                        recorder.ondataavailable = function (event) {
+                            audioBlob = event.data;
+                            audioUrl = URL.createObjectURL(audioBlob);
+                        };
+                        recorder.start();
+                        document.getElementById('startRecording').disabled = true;
+                        document.getElementById('stopRecording').disabled = false;
+                    })
+                    .catch(function (error) {
+                        console.error('Error accessing microphone:', error);
+                    });
+            }
         }
 
-        // Function to send the transcribed dream text to OpenAI for interpretation
+        function stopRecording() {
+            recorder.stop();
+            document.getElementById('startRecording').disabled = false;
+            document.getElementById('stopRecording').disabled = true;
+
+            // Upload audio to Firebase Storage
+            const audioRef = storage.ref().child('audio/' + Date.now() + '.ogg');
+            audioRef.put(audioBlob).then(function (snapshot) {
+                console.log('Audio uploaded successfully!');
+                // After uploading, transcribe audio to text
+                transcribeAudio(snapshot);
+            });
+        }
+
+        function transcribeAudio(snapshot) {
+            // Once audio is uploaded, retrieve the audio URL
+            snapshot.ref.getDownloadURL().then(function (downloadURL) {
+                // Send the audio URL to the backend or use a Speech-to-Text API
+                fetch('https://your-speech-to-text-api-endpoint', {
+                    method: 'POST',
+                    body: JSON.stringify({ audioUrl: downloadURL }),
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    const transcribedText = data.transcription; // Assuming the response has a 'transcription' field
+                    document.getElementById('transcription').textContent = transcribedText;
+                    document.getElementById('transcriptionSection').style.display = 'block';
+                    getDreamInterpretation(transcribedText);  // Send to AI for interpretation
+                })
+                .catch(error => console.error('Error transcribing audio:', error));
+            });
+        }
+
         function getDreamInterpretation(transcribedText) {
-            const apiKey = "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";  // Replace with your OpenAI API key
-            
-            fetch("https://api.openai.com/v1/completions", {
-                method: "POST",
+            const apiKey = 'YOUR_OPENAI_API_KEY';  // Your OpenAI API key
+
+            fetch('https://api.openai.com/v1/completions', {
+                method: 'POST',
                 headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: "text-davinci-003",  // Use the OpenAI GPT model
-                    prompt: `Interpret this dream spiritually: "${transcribedText}"`,  // The transcribed text
-                    max_tokens: 200,  // Adjust based on response length
-                    temperature: 0.7,  // Controls the creativity of the response
-                }),
+                    model: 'text-davinci-003', // You can use any model you prefer
+                    prompt: `Please interpret the following dream: ${transcribedText}`,
+                    max_tokens: 150
+                })
             })
             .then(response => response.json())
             .then(data => {
-                // Display the interpretation
-                displayInterpretation(data.choices[0].text);
+                const interpretation = data.choices[0].text.trim();
+                displayInterpretation(interpretation);
             })
-            .catch(error => {
-                console.error("Error interpreting the dream:", error);
-            });
+            .catch(error => console.error('Error interpreting dream:', error));
         }
 
-        // Function to display the interpretation result on the page
-        function displayInterpretation(interpretationText) {
-            const outputElement = document.getElementById("interpretation-output");
-            outputElement.innerHTML = `<strong>Dream Interpretation:</strong><br>${interpretationText}`;
+        function displayInterpretation(interpretation) {
+            const interpretationDiv = document.getElementById('interpretationText');
+            interpretationDiv.innerText = interpretation;
+            document.getElementById('interpretation').style.display = 'block';
         }
     </script>
 </body>
